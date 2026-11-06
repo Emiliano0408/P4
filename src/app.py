@@ -105,21 +105,107 @@ class AutomataApp:
     # CONFIGURACIÓN DE PESTAÑA 2: IMPORTAR JFF
     # ==========================================
     def setup_tab_jff(self):
-        frame_jff = tk.LabelFrame(self.tab_jff, text=" Operaciones con Archivos JFLAP (.jff) ", padx=10, pady=10)
+        frame_jff = tk.LabelFrame(self.tab_jff, text=" Ejercicio 3: Importar AFD y Obtener Expresión Regular ", padx=10, pady=10)
         frame_jff.pack(fill="x", padx=10, pady=10)
 
-        btn_importar = tk.Button(frame_jff, text="Cargar Autómata desde .jff", command=self.importar_jff, bg="#2196F3", fg="white")
+        btn_importar = tk.Button(frame_jff, text="Cargar AFD desde .jff y Procesar", command=self.importar_y_procesar_jff, bg="#2196F3", fg="white")
         btn_importar.pack(pady=5)
 
-        frame_out_jff = tk.LabelFrame(self.tab_jff, text=" Información del Autómata Cargado ", padx=10, pady=10)
+        # Controles para avanzar paso a paso
+        frame_pasos = tk.Frame(self.tab_jff)
+        frame_pasos.pack(fill="x", padx=10, pady=5)
+
+        self.btn_anterior = tk.Button(frame_pasos, text="<< Paso Anterior", command=self.paso_anterior, state="disabled")
+        self.btn_anterior.pack(side="left", padx=5)
+
+        self.lbl_paso_actual = tk.Label(frame_pasos, text="Paso: 0 / 0", font=("Arial", 10, "bold"))
+        self.lbl_paso_actual.pack(side="left", padx=10)
+
+        self.btn_siguiente = tk.Button(frame_pasos, text="Paso Siguiente >>", command=self.paso_siguiente, state="disabled")
+        self.btn_siguiente.pack(side="left", padx=5)
+
+        frame_out_jff = tk.LabelFrame(self.tab_jff, text=" Autómata Generalizado (GNFA) por Estado Eliminado ", padx=10, pady=10)
         frame_out_jff.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.text_log_jff = tk.Text(frame_out_jff, wrap="word", height=20)
+        self.text_log_jff = tk.Text(frame_out_jff, wrap="word", height=18)
         self.text_log_jff.pack(side="left", fill="both", expand=True)
 
         scrollbar = tk.Scrollbar(frame_out_jff, command=self.text_log_jff.yview)
         scrollbar.pack(side="right", fill="y")
         self.text_log_jff.config(yscrollcommand=scrollbar.set)
+
+        self.gnfa_steps = []
+        self.current_step_idx = 0
+
+    def importar_y_procesar_jff(self):
+        filename = filedialog.askopenfilename(filetypes=[("JFLAP files", "*.jff"), ("XML files", "*.xml")])
+        if not filename:
+            return
+
+        self.text_log_jff.delete("1.0", tk.END)
+        try:
+            self.log(self.text_log_jff, f"[*] Importando autómata desde: {filename}")
+            aut = Automaton.import_from_jff(filename)
+            self.current_automaton = aut
+            
+            # 1. Verificar determinismo estrictamente como pide la rúbrica
+            is_dfa, estado_err, simb_err = aut.verificar_determinismo()
+            if not is_dfa:
+                messagebox.showerror("Error de Determinismo", f"El autómata NO es determinista.\nEstado que falla: '{estado_err}'\nSímbolo/Conflicto: '{simb_err}'")
+                self.log(self.text_log_jff, f"[X] Rechazado: El autómata no es determinista en el estado '{estado_err}' con '{simb_err}'.")
+                return
+
+            self.log(self.text_log_jff, f"[+] ¡El autómata es 100% Determinista (AFD válido)!")
+            self.log(self.text_log_jff, f"    - Estados totales: {len(aut.states)}")
+            self.log(self.text_log_jff, f"    - Alfabeto: {list(aut.alphabet)}\n")
+
+            # 2. Aplicar eliminación de estados paso a paso
+            final_er, steps = aut.eliminacion_estados_paso_a_paso()
+            self.gnfa_steps = steps
+            self.current_step_idx = 0
+
+            self.log(self.text_log_jff, f"[!] Expresión Regular Final Obtenida: {final_er}\n")
+            self.log(self.text_log_jff, "--- Usa los botones de arriba para ver el autómata generalizado paso a paso ---\n")
+
+            # Habilitar controles de pasos
+            self.btn_siguiente.config(state="normal")
+            self.btn_anterior.config(state="disabled")
+            self.actualizar_vista_paso()
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            self.log(self.text_log_jff, f"[X] Error: {str(e)}")
+
+    def actualizar_vista_paso(self):
+        if not self.gnfa_steps:
+            return
+        
+        step = self.gnfa_steps[self.current_step_idx]
+        self.lbl_paso_actual.config(text=f"Paso: {self.current_step_idx + 1} / {len(self.gnfa_steps)}")
+        
+        self.text_log_jff.delete("1.0", tk.END)
+        self.log(self.text_log_jff, f"=== PASO {step['paso']} ===")
+        self.log(self.text_log_jff, f"Estado eliminado en este paso: {step['estado_eliminado']}\n")
+        self.log(self.text_log_jff, "Transiciones del Autómata Generalizado (GNFA):")
+        
+        for trans, regex in step["transiciones"].items():
+            self.log(self.text_log_jff, f"   {trans}  -->  {regex}")
+
+    def paso_siguiente(self):
+        if self.current_step_idx < len(self.gnfa_steps) - 1:
+            self.current_step_idx += 1
+            self.actualizar_vista_paso()
+            self.btn_anterior.config(state="normal")
+            if self.current_step_idx == len(self.gnfa_steps) - 1:
+                self.btn_siguiente.config(state="disabled")
+
+    def paso_anterior(self):
+        if self.current_step_idx > 0:
+            self.current_step_idx -= 1
+            self.actualizar_vista_paso()
+            self.btn_siguiente.config(state="normal")
+            if self.current_step_idx == 0:
+                self.btn_anterior.config(state="disabled")
 
     def importar_jff(self):
         filename = filedialog.askopenfilename(filetypes=[("JFLAP files", "*.jff"), ("XML files", "*.xml")])

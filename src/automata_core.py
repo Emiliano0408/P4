@@ -15,10 +15,16 @@ class State:
             self.transitions[symbol].append(state)
 
 class Automaton:
-    def __init__(self, states, start_state, alphabet):
+    def __init__(self, states, start_state, alphabet, accept_state=None):
         self.states = states
         self.start_state = start_state
         self.alphabet = alphabet
+        # Asignar o encontrar el estado de aceptación
+        if accept_state is not None:
+            self.accept_state = accept_state
+        else:
+            accepts = [s for s in states if s.is_accept]
+            self.accept_state = accepts[0] if accepts else None
 
     @staticmethod
     def lambda_closure(states_set):

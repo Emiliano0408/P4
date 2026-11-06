@@ -16,11 +16,9 @@ def preprocess_regex(expression):
         if i + 1 < len(expression):
             c2 = expression[i + 1]
             
-            # Validar caracteres no permitidos
             if not (c1.isalnum() or c1 in {'+', '*', '(', ')', 'λ', '∅'}):
                 raise ValueError(f"Símbolo no reconocido '{c1}' en la posición {i}.")
             
-            # Reglas para concatenación implícita
             if (c1 not in binary_ops and c1 != '(') and (c2 != ')' and c2 not in operators and c2 != '+'):
                 output.append('.')
             elif c1 == '*' and (c2 != ')' and c2 not in operators and c2 != '+'):
@@ -35,12 +33,12 @@ def preprocess_regex(expression):
     return "".join(output)
 
 def infix_to_postfix(expression):
-    """Convierte la expresión infija a postfija respetando precedencias y reportando posición del error[cite: 1, 2]."""
+    """Convierte la expresión infija a postfija respetando precedencias y reportando posición del error."""
     precedence = {'*': 3, '.': 2, '+': 1}
     output = []
     stack = []
     
-    processed = preprocess_regex(expression)
+    preprocess_regex(expression)
     
     for idx, char in enumerate(expression):
         if char.isalnum() or char in {'λ', '∅'}:
@@ -73,15 +71,19 @@ def infix_to_postfix(expression):
     return output
 
 def build_thompson(postfix):
-   def build_thompson_with_steps(postfix):
+    """Construye el AFN-λ aplicando la primera parte del teorema de Kleene (Thompson)."""
+    nfa, _ = build_thompson_with_steps(postfix)
+    return nfa
+
+def build_thompson_with_steps(postfix):
     """
     Construye el AFN-λ paso a paso, devolviendo el autómata final 
     y un registro detallado de cada autómata parcial generado.
     """
     stack = []
-    steps = [] # Historial de autómatas parciales
+    steps = []
     
-    for idx, token in enumerate(postfix):
+    for token in postfix:
         if token.isalnum() or token in {'λ', '∅'}:
             start = State()
             accept = State(is_accept=True)
@@ -187,6 +189,3 @@ def build_thompson(postfix):
     final_nfa = stack.pop()
     final_nfa.accept_state.is_accept = True
     return final_nfa, steps
-    # Asegurar que el estado final guarde la bandera de aceptación correctamente
-    final_nfa.accept_state.is_accept = True
-    return final_nfa

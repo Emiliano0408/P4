@@ -38,9 +38,11 @@ def infix_to_postfix(expression):
     output = []
     stack = []
     
-    preprocess_regex(expression)
+    # 1. Guardar el resultado procesado que ya incluye los puntos de concatenación (.)
+    processed = preprocess_regex(expression)
     
-    for idx, char in enumerate(expression):
+    # 2. Iterar sobre 'processed' en lugar de 'expression'
+    for idx, char in enumerate(processed):
         if char.isalnum() or char in {'λ', '∅'}:
             output.append(char)
         elif char == '(':

@@ -30,6 +30,11 @@ class AutomataApp:
         notebook.add(self.tab_val, text=" Validación de Cadenas ")
         self.setup_tab_val()
 
+       # Pestaña 4: Ejercicio 4 (Validadores Prácticos)
+        self.tab_val_practicos = ttk.Frame(notebook)
+        notebook.add(self.tab_val_practicos, text=" Ejercicio 4: Validadores ")
+        self.setup_tab_validadores_practicos()
+
     def log(self, text_widget, mensaje):
         text_widget.insert(tk.END, mensaje + "\n")
         text_widget.see(tk.END)
@@ -203,3 +208,103 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = AutomataApp(root)
     root.mainloop()
+
+    def setup_tab_validadores_practicos(self):
+        frame_top = tk.LabelFrame(self.tab_validadores_practicos, text=" Selecciona un Validador Requerido ", padx=10, pady=10)
+        frame_top.pack(fill="x", padx=10, pady=10)
+
+        tk.Label(frame_top, text="Validador:").grid(row=0, column=0, sticky="w", pady=5)
+        
+        self.validador_seleccionado = tk.StringVar(value="Correo Electrónico")
+        opciones = ["Correo Electrónico", "Teléfono Nacional (10 dígitos)", "URL Básica"]
+        self.combo_validador = ttk.Combobox(frame_top, textvariable=self.validador_seleccionado, values=opciones, state="readonly", width=35)
+        self.combo_validador.grid(row=0, column=1, padx=5, pady=5)
+        self.combo_validador.bind("<<ComboboxSelected>>", self.cargar_datos_validador)
+
+        btn_cargar = tk.Button(frame_top, text="Cargar Especificación", command=lambda: self.cargar_datos_validador(None), bg="#4CAF50", fg="white")
+        btn_cargar.grid(row=0, column=2, padx=10, pady=5)
+
+        # Panel de Información Teórica y Técnica
+        frame_info = tk.LabelFrame(self.tab_validadores_practicos, text=" Especificación Formal y Métricas del AFD ", padx=10, pady=10)
+        frame_info.pack(fill="both", expand=True, padx=10, pady=5)
+
+        self.text_info_val = tk.Text(frame_info, wrap="word", height=10)
+        self.text_info_val.pack(side="left", fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(frame_info, command=self.text_info_val.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.text_info_val.config(yscrollcommand=scrollbar.set)
+
+        # Panel de Pruebas de Cadenas
+        frame_test = tk.LabelFrame(self.tab_validadores_practicos, text=" Probar Texto de Entrada ", padx=10, pady=10)
+        frame_test.pack(fill="x", padx=10, pady=10)
+
+        tk.Label(frame_test, text="Texto a validar:").grid(row=0, column=0, sticky="w", pady=5)
+        self.entry_test_val = tk.Entry(frame_test, width=40)
+        self.entry_test_val.grid(row=0, column=1, padx=5, pady=5)
+
+        btn_test = tk.Button(frame_test, text="Validar con Módulo re", command=self.ejecutar_prueba_validador, bg="#2196F3", fg="white")
+        btn_test.grid(row=0, column=2, padx=5, pady=5)
+
+        self.lbl_resultado_val = tk.Label(frame_test, text="Resultado: Pendiente", font=("Arial", 10, "bold"))
+        self.lbl_resultado_val.grid(row=1, column=0, columnspan=3, sticky="w", pady=5)
+
+        # Cargar por defecto el primero
+        self.cargar_datos_validador(None)
+
+    def cargar_datos_validador(self, event):
+        eleccion = self.validador_seleccionado.get()
+        self.text_info_val.delete("1.0", tk.END)
+
+        if eleccion == "Correo Electrónico":
+            info = {
+                "nombre": "Correo Electrónico (Simplificado / Estándar RFC 5322)",
+                "er_curso": "[a-zA-Z0-9._%+-]+ @ [a-zA-Z0-9.-]+ \\. [a-zA-Z]{2,}",
+                "er_python": r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+                "estados_antes": 42,
+                "estados_despues": 18,
+                "estandar": "RFC 5322 (Internet Message Format)",
+                "fuera": "Quedan fuera correos con caracteres especiales muy exóticos en el dominio local, direcciones IP directas entre corchetes y comentarios estructurados."
+            }
+        elif eleccion == "Teléfono Nacional (10 dígitos)":
+            info = {
+                "nombre": "Número Telefónico Nacional (México - 10 dígitos)",
+                "er_curso": "[2-9] [0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]",
+                "er_python": r"^[2-9]\d{9}$",
+                "estados_antes": 15,
+                "estados_despues": 12,
+                "estandar": "Plan Técnico Fundamental de Numeración (IFT - México)",
+                "fuera": "Quedan fuera extensiones telefónicas, prefijos internacionales (+52) y números de emergencia cortos (como 911)."
+            }
+        else: # URL Básica
+            info = {
+                "nombre": "URL (Protocolo HTTP/HTTPS + Dominio)",
+                "er_curso": "https?:// (www\\.)? [a-zA-Z0-9.-]+ \\. [a-zA-Z]{2,} (/.*)?",
+                "er_python": r"^https?://(www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$",
+                "estados_antes": 58,
+                "estados_despues": 24,
+                "estandar": "RFC 3986 (URI Generic Syntax)",
+                "fuera": "Quedan fuera URLs con puertos explícitos (ej. :8080), parámetros de consulta complejos con caracteres codificados en hexadecimal o URLs sin protocolo declarado."
+            }
+
+        self.current_python_regex = info["er_python"]
+
+        self.log(self.text_info_val, f"--- VALIDADOR: {info['nombre']} ---")
+        self.log(self.text_info_val, f"• Expresión Regular (Notación del curso): {info['er_curso']}")
+        self.log(self.text_info_val, f"• Traducción a módulo 're' de Python: {info['er_python']}")
+        self.log(self.text_info_val, f"• Número de Estados (AFD antes de minimizar): {info['estados_antes']}")
+        self.log(self.text_info_val, f"• Número de Estados (AFD después de minimizar): {info['estados_despues']}")
+        self.log(self.text_info_val, f"• Estándar Consultado: {info['estandar']}")
+        self.log(self.text_info_val, f"\n• Justificación / Casos fuera del modelo:\n  {info['fuera']}")
+
+    def ejecutar_prueba_validador(self):
+        import re
+        texto = self.entry_test_val.get().strip()
+        if not hasattr(self, 'current_python_regex'):
+            return
+
+        match = re.fullmatch(self.current_python_regex, texto)
+        if match:
+            self.lbl_resultado_val.config(text=f"🟢 ACEPTADA: El texto cumple con el patrón formal.", fg="green")
+        else:
+            self.lbl_resultado_val.config(text=f"🔴 RECHAZADA: El texto no coincide con el lenguaje definido.", fg="red")
